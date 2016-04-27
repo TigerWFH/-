@@ -1,0 +1,155 @@
+原文地址：https://www.npmjs.com/package/multer
+
+multer：处理带有multipart/form-data属性的中间件。
+multer是nodejs的中间件，用来处理multipart/form-data文件上传。写该中间件的目的是为了提高效率。
+
+注意：multer只能用来处理带有multipart/form-data表单数据。
+
+安装：
+    $ npm install --save multer
+    
+用法：
+    multer会向request对象添加一个body对象和一个file（files）对象。body对象包含了表单文本域的值，file（files）对象则包含了通过表单上传的文件。
+    基本用法示例：
+        var express = require('express');
+        var multer = require('multer');
+        var upload = multer({ dest: 'upload/' });
+        
+        var app = express();
+        
+        app.post('/profile', upload.single('avatar'), function (req, res, next){
+            //req.file就是'avatar'文件（就是实际上传文件）
+            //req.body 如果表单有文本域，将会保存文本域的值
+        });
+        
+        app.post('/photos/upload', upload.array('photos', 12), function (req, res, next){
+            //req.files 是一组'photos'文件
+            //req.body 同上
+        };
+        
+        var cpUpload = upload.fields([{name: 'avatar', maxCount: 1}, {name: 'gallery', maxCount: 8}]);
+        app.post('/cool-profile', cpUpload, function (req, res, next){
+        // req.files is an object (String -> Array) where fieldname is the key, and the value is array of files 
+        // 
+        // e.g. 
+        //  req.files['avatar'][0] -> File 
+        //  req.files['gallery'] -> Array 
+        // 
+        // req.body will contain the text fields, if there were any 
+            //req.files 是一个对象，包含了以fieldname为key值，以文件的array为值
+        };
+        如果你要处理纯文本的multipart表单，你可以使用.single(),.array(),fields()等函数。下面是一个使用.array()的示例：
+        var express = require('express');
+        var app = express();
+        var multer = require('multer');
+        var upload = multer();
+        
+        app.post('/profile', upload.array(), function (req, res, next){
+            //req.body contains the text fields
+        };
+    API
+    File information  文件信息
+    每一个文件都包含以下信息：
+    key                                       description                     note
+    fieldname                             表单内指定的字段名
+    originalname                          用户电脑上文件名字
+    encoding                              文件的编码类型
+    mimetype                              文件的mime类型
+    size                                  以字节为单位，文件的大小
+    destination                           保存文件的文件夹                      DiskStorage
+    filename                              destination内文件的名字              DiskStorage
+    path                                  上传文件的完整路径                    DiskStorage
+    buffer                                整个文件的缓存区                      MemoryStorage
+    
+multer(opts)
+    Multer有一个选项对象为参数，多数情况下都是dest属性，该属性指定了上传文件保存的位置。如果该该选项未设置，文件会保存在内存中，且不能写到磁盘上。
+    默认的，为了避免命名冲突，Multer会默认修改文件名。命名函数可根据需求自行定义。
+    下面是可以设置的参数：
+    key                                 description
+    dest or storage                      存放文件位置
+    fileFilter                           指定可接受文件的函数
+    limits                               上传数据的限制
+    
+    在一般的web应用中，可能仅仅设置了dest选项。如下配置：’
+    var upload = multer({dest: 'uploads/'});
+    如果你要更多的选项设置，你就需要使用storage代替dest选项。Multer附带了DiskStorage和MemoryStorage两个引擎，更多的引擎需要引入第三方库。
+    .single(fieldname)
+    接收一个命名为fieldname的单个文件。该文件存储在req.file中。
+    
+    .array(fieldname[, maxCount])
+    接收一组文件，使用同样的名字fieldname（批量上传？）。如果多过maxCount文件上床，就会报错。该组文件会存储在req.files中。
+    
+    .fields(fields)
+    接收fields指定的混合文件。含有组数据的对象存储在req.fields中。
+    fields是一组对象，每一个对象包含一个名字和maxCount。例如：
+    [
+        {name: 'avatar', maxCount:1},
+        {name: 'gallery', maxCount: 8}
+    ]
+    .any()
+    接收所有的文件，并存储在req.files中。
+    警告：除非你要经常处理用户上传的文件，否者不要将multer设置为全局中间件。因为恶意上传会将文件上传到你想不到的路由出。仅在你要处理的路由点添加该中间件。
+    storage
+    DiskStorage
+    disk storage能够让你全方位控制上传的文件
+    var storage = multer.diskstorage({
+        destination: function (req, file, cb){
+            cb(null, '/tmp/my-uploads')
+        },
+        filename: function (req, file, cb){
+            cb(null, file.fieldname + '-' + Date.now())
+        }
+    });
+    var upload = multer({storage: storage});
+    有两个可用选项，destination和filename。他们都是函数，用来确定文件的存储位置。
+    destination用来确定上传文件存储在哪一个文件夹中。也可以是一个字符串形式('/tmp/uploads/')。如果未指定，则使用操作系统默认的临时文件存储位置。
+    注意：如果传递一个函数，你要负责创建指定的文件夹；如果传递字符串，multer会自动创建文件夹。
+    filename指定存储文件名。如果未指定，multer随机生成一个名字，且没有后缀。
+    注意：multer不会添加后缀，需要你手动添加。
+    每一个函数都传递了req和file对象，提供更多信息。
+    注意，req.body可能尚未完全填充数据，这取决于客户端传输fields和files到服务器的情况。
+    MemoryStorage
+    memorystorage引擎将文件存储在内存中，作为一个buffer对象。他没有任何参数。
+    var storage = multer.memoryStorage();
+    var upload = multer({storage:storage});
+    当我们使用memory storage时，文件信息会包含一个成为buffer域，该域包含了所有的文件。
+    警告：但是用memory storage时，如果上传过大的文件，或者上传过多的小文件，可能会造成内存耗尽的问题。
+    limits
+    指定下列属性大小的对象。multer直接传递该参数给busboy，详细属性信息参考busboy的主页。
+    下面的整数值是可以使用的：
+    key                        description                                                default
+    fieldNameSize             Max field name size                                           100bytes
+    fieldSize                 Max field value size                                          1MB
+    fields                    Max number if non-file fields                                 Infinity
+    fileSize                  For multipart forms,the max file size(in bytes)               infinity
+    parts	                  For multipart forms, the max number of parts (fields + files)	Infinity
+    headerPairs	    For multipart forms, the max number of header key=>value pairs to parse	2000
+    指定大小，可以预防DOS攻击。
+    fileFilter
+    过滤器，指定可上传文件类型。示例如下：
+    function fileFilter (req, file, cb){
+        //首先调用cb函数，并传递一个布尔型的值，根据该值指明文件是否可接受
+        //拒绝，传递false参数
+        cb(null, false);
+        //接受文件，传递true
+        cb(null, true)
+        //如果出错，你可以传递错误信息
+        cb(new Error('I dont have a clue!'));
+    };
+    Error handling
+    当遇到错误时，multer会将错误传递给express。你可以使用标准的express方式显示错误页面。
+    如果你想从multer中抓取指定的错误，你可以自行调用中间件。
+    var upload = multer().single('avatar');
+    
+    app.post('/profile', function (req, res){
+        upload(req, res, function (err){
+            if (err){
+                //当上传时发生错误
+                return
+            }
+        });
+    });
+    自定义的存储引擎
+    参考对应文档
+    
+    
