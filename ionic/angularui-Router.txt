@@ -1,0 +1,120 @@
+@深入指导
+
+@@State Manage 状态管理
+    新服务$stateProvider和angular v1 路由的工作原理相似，但更侧重于状态(state)。
+        * 状态(state)就是应用程序中UI或者导航的某一部分视图。
+        * 状态(state,via the controller/template/view properties)描述了UI的外形和UI的功能。
+        * 不通状态(states)是有共性的，分离出这些共性的主要方法是通过状态层级。例如：parent/child,又称为嵌套状态。
+    
+@@最简单的使用方式：
+    <!--in index.html-->
+    <body ng-controller="MainCtrl">
+        <section ui-view></section>
+    </body>
+    
+    //in app-states.js
+    $stateProvide.state('contacts', {
+        template: '<h1>My Contacts</h1>'
+    })
+    
+@@模板被插入到哪里？
+    当状态(state)激活时，他的模板就自动的被插入到他的父状态的模板中的ui-view中。如果是顶级状态，比如contacts，因为它没有父状态，那么它就被插入到index.html中。
+    当前contacts状态并未激活，下面介绍如何激活state。
+
+@@激活状态
+    主要有三种方法来激活状态：
+        * 调用$state.go()函数。
+        * 点击包含ui-sref指令的链接。
+        * 导航到state对应的url。
+
+@@模板
+    有多个为state配置模板的方法。
+    1、最简单就是通过template配置属性。
+    $stateProvide.state('contacts', {
+        template: '<h1>MyContacts</h1>'
+    })
+    2、通过加载模式配置模板(最常用方法)
+    $stateProvide.state('contacts', {
+        templateUrl: 'contacts.html'
+    })
+    templateUrl可以接收一个返回url的函数作为参数。该函数接收一个预设参数，stateParams。该参数不会被注入。
+    $stateProvider.state('contacts', {
+        templateUrl: function ($stateParams){
+            return '/partials/contacts.' + $stateParams.filterBy + 'html';
+        };
+    })
+    3、使用模板提供者函数，可以被注入，有权访问locals并返回html模板。
+    $StateProvider.state('contacts', {
+        templateProvider: function ($timeout, $stateParams){
+            return $timeout(function (){
+                return '<h1>' + $stateParams.contactID + '</h1>';
+            }, 100);
+        }
+    })
+    在激活状态，填充ui-view之前，你可以在ui-view中添加一些默认内容。一旦状态激活，内容就会被模板替换。
+    
+@@控制器
+    你可以讲一个控制器赋给你的模板。警告：如果模板未定义，控制器不会被实例化。
+    设置控制器：
+    $stateProvide.state('contacts', {
+        template: '<h1>{{title}}</h1>',
+        controller: function ($scope){
+        $scope.title="TigerWFH";
+        }
+    })
+    如果已经定义了控制器，如下设置：
+    $stateProvide.state('contacts', {
+        template: '<h1>{{title}}</h1>',
+        controller: 'ContactCtrl'
+    })
+    或者使用controller as语法：
+    $stateProvide.state('contacts', {
+        template: '<h1>{{contact.title}}</h1>',
+        controller: function (){
+        this.title = 'MyContacts';
+        },
+        controllerAs: 'contact'
+    })
+    和
+    $stateProvider.state('contacts', {
+        template: ...,
+        controller: 'ContactsCtrl as contact'
+    })
+    跟多高级用法，使用controllerProvider动态的返回控制器或者字符串。
+    $stateProvider.state('contacts', {
+        template: ...,
+        controllerProvider: function ($stateParams){
+        var ctrName = $stateParams.type + "Controller";
+        return ctrlName;
+        }
+    })
+    控制器可以使用$scope.$on()方法监听状态转换触发的事件。当控制器的关联scopes被创建时，控制器才会被实例化。例如：当用户通过URL手动导航触发状态时，$stateProvide会加载正确
+    的模板填充视图，然后绑定对应的控制器。（一句话就是，先填充视图，在绑定控制器）
+    Resolve（用来渲染模板的？）
+    你可以使用resolve想你的控制器提供与状态相关的内容和数据。resolve是一个可选的依赖映射，会被注入到控制器中。如果依赖中有promise对象，they will be resolved并在控制器实例化之前
+    转换成值。同时$stateChangeSuccess时间被触发。resolve属性是一个映射对象。映射对象包含的是键值对：
+        * key   string     注入到控制器中的依赖名字
+        * factory   string|function   string：服务的别名
+                                      function：注入到控制器，返回值就是依赖项。如果返回值是promise，it is resolved在控制器实例化之前，他的值注入到控制器中。
+    案例：
+        在控制器实例化之前，下列对象必需被resolved（通过deferred.resolved()如果他们是promise）。要注意每一个resolve对象是如何作为参数被注入到控制器中的：
+        $stateProvide.state('myState', {
+            resolve:{
+                simpleObj: function (){
+                return {value: 'simple!'};
+                },
+                promiseObj: function ($http){
+                    return $http({method: 'GET', url: '/someUrl'});
+                },
+                promiseObj2: function ($http){
+                    return $http({method: 'GET', url:'/someUrl'})
+                            .then(function (data){
+                                return doSomeStuffFirst(data);
+                            });
+                },
+                translations: 'translations',
+                translations2: function (translations, $stateParams){
+                    return translations.getLang($stateParams.lang);
+                }
+            }
+        })
