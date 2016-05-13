@@ -4,7 +4,7 @@
     新服务$stateProvider和angular v1 路由的工作原理相似，但更侧重于状态(state)。
         * 状态(state)就是应用程序中UI或者导航的某一部分视图。
         * 状态(state,via the controller/template/view properties)描述了UI的外形和UI的功能。
-        * 不通状态(states)是有共性的，分离出这些共性的主要方法是通过状态层级。例如：parent/child,又称为嵌套状态。
+        * 不同状态(states)是有共性的，分离出这些共性的主要方法是通过状态层级。例如：parent/child,又称为嵌套状态。
     
 @@最简单的使用方式：
     <!--in index.html-->
@@ -54,7 +54,7 @@
     在激活状态，填充ui-view之前，你可以在ui-view中添加一些默认内容。一旦状态激活，内容就会被模板替换。
     
 @@控制器
-    你可以讲一个控制器赋给你的模板。警告：如果模板未定义，控制器不会被实例化。
+    你可以将一个控制器赋给你的模板。警告：如果模板未定义，控制器不会被实例化。
     设置控制器：
     $stateProvide.state('contacts', {
         template: '<h1>{{title}}</h1>',
