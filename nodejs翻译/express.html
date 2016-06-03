@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Express API 翻译</title>
+        <style>
+            span {
+                background-color: green;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Express API 翻译</h1>
+        <h3>Request:</h3>
+        <p>
+            request对象封装了<span>http请求</span>的所有信息。该对象的属性有request query string,parameters,body,HTTP headers等等。
+        </p>
+        <p>
+            在本文档中，为了方便，会简写为req（响应简写为res），但是他的实际命名是根据你的回调函数中的参数指定的。例如：
+        </p>
+        <p>
+            app.get('/user/:id', function(req, res){
+            <br />
+            res.send('user' + req.params.id);
+            <br />
+            });
+        </p>
+        或者
+        <p>
+            app.get('/user/:id', function(request, response){
+            <br />
+            res.send('user' + request.params.id);
+            <br />
+            });
+        </p>
+        <h4>Properties</h4>
+        <span>在版本4中，默认的req.files移除，如果要访问上传的文件对象，请使用有关插件。multer便是其中之一。</span>
+        <p>
+            <h5>req.app</h5>
+            该属性存储一个正在应用模块的express应用实例的引用。按照指定的方式(使用exports导出模块，使用require加载模块)书写插件，模块通过该属性可以与express应用交互。例如：
+            <p>
+                //index.js <br />
+                app.get('/viewdirectory', require('./mymiddleware.js'));
+                <br />
+                <br />
+                // mymiddleware.js <br />
+                module.exports = function (req, res){
+                    <br />
+                    res.send('The views directory is' + req.app.get('views'));
+                    <br />
+                };
+            </p>
+        </p>
+        <p>
+            <h5>req.baseUrl</h5>
+            路由实例挂载的url路径。req.baseUrl属性和app应用的mountpath属性类似。app.mountpath会返回匹配的所有路径模式。例如：
+            <p>
+                var greet = express.Router();<br />
+                greet.get('/jp', function(req, res){<br />
+                    console.log(req.baseUrl); // /greet<br />
+                    res.send('Konichiwa!');<br />
+                });<br />
+                app.use('/greet', greet); //load the router on '/greet'<br />  
+            </p>
+        </p>
+    </body>
+</html>

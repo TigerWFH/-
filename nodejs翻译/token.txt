@@ -1,0 +1,255 @@
+//说明：在nodejs中生成使用token的API
+//原文地址：https://scotch.io/tutorials/authenticate-a-node-js-api-with-json-web-tokens
+//作者:Chris Sevilleja
+//译者:TigerWFH
+Authenticate a Node.js API with JSON Web Tokens    使用JSON网络token验证Nodejs API
+介绍：
+    认证是所有应用中重要组成部分之一。安全问题总是在不断的变化和发展。在过去，我们一直使用Passport包进行验证。
+    
+开始：
+    主要流程如下所示：
+    1、使用两个路由，一个是受保护的，一个是未保护的。
+    2、用户传递用户名和密码获得授权token。
+    3、用户将token存储在客户端，并使用该token进行其他的请求。
+    4、服务端验证token。如果token正确且有效，则以JSON格式传回信息。
+使用下列内容创建API：
+    1、正常的路由（未授权的）
+    2、使用路由插件进行认证
+    3、认证用户名和密码的路由，并返回一个token给用户
+    4、通过认证的路由获取所有用户
+环境：
+    1、node和npm
+    2、POSTman
+实例开始：
+    首先，观察一下我们node应用的文件结构，十分简单。
+    文件结构：
+        - app/
+        ---- models/
+        -------- user.js
+        - config.js
+        - package.json
+        - server.js
+   对于一个成熟的项目而言，你可能想要修改main文件的内容，移除或者加入一些内容。
+配置Node应用（package.js）
+    首先配置package.js文件，这是node应用开始文件。
+    {
+        "name":"node-token-jwt",
+        "main":"server.js"
+    }
+    配置好以后，开始安装相关的包。
+    $npm install express body-parse morgan mongoose jsonwebtoken --save
+    注释：
+        express: 流行的Node框架
+        mongoose: 连接MongoDB数据库的驱动模块
+        morgan: 请求日志记录
+        body-parse: 从POST请求中获取参数
+        jsonwebtoken: 创建并认证JSON Web Tokens
+    --save参数会将这些包自动保存到package.json文件中，多么的方便啊。
+    接下来，需要为项目添加一些文件了。
+    用户模块(app/models/user.js)
+    用户模块用于存储和返回用户信息。创建user.js文件，用于创建Mongoose模块。
+    //user.js
+    // get an instance of mongoose and mongoose.Schema
+    var mongoose = require('mongoose');
+    var Schema = mongoose.Schema;
+    
+    //set up a mongoose model and pass it using module.exports
+    module.exports = mongoose.model('User', new Schema({
+        name: String,
+        password: String,
+        admin: Boolean
+    }));
+    
+    接下来创建config.js文件，存储变量并配置应用。
+    对于该文件，需要创建MongoDB数据库。你可以在本地创建一个，也可以使用在线的（modulus.io）。无论使用哪一种方式，你都会得到一个URI字符串作为你
+    数据库的配置。
+    //config.js
+    module.exports = {
+        'secret': 'ilovescotchyscotch',
+        'database': 'mongodb://noder:noderauth&54;proximus.modulusmongo.net:27017/so9pojyN'
+    };
+    secret：用于对token的签名，并用来验证已签名的token
+    databse: 数据库
+    
+主文件：server.js
+    1、获取所有包的实例。包括已经安装的包和我们自己写模块。
+    2、配置应用：数据库和其他参数。
+    3、创建基本的路由，即不受保护的公共路由，都可以访问的。
+    4、创建API路由，这些路由需要授权访问。----  GET http://localhost:8080/api/users
+    //server.js
+    //==========================
+    // get the packages we need =====
+    //==========================
+    var express = require('express');
+    var app = express();
+    var bodyParser = require('body-parser');
+    var morgan = require('morgan');
+    var mongoose = require('mongoose');
+    
+    var jwt = require('jsonwebtoken'); //used to create,sign,and verify tokens
+    var config = require('./config'); //get our config file
+    var User = require('./app/models/user'); //get our mongoose model
+    //==========================
+    // configuration ===========
+    //==========================
+    var port = process.env.PORT || 8080;
+    mongoose.connect(config.database); //connect to database
+    app.set('superSecret', config.secret); //secret variable
+    
+    //use body parser so we can get info from POST and/or URL parameters
+    app.use(bodyParser.urlencoded({extended: false}));
+    app.use(bodyParser.json());
+    
+    //use morgan to log requests to the console
+    app.use(morgan('dev'));
+    
+    //==========================
+    // routes ============ =====
+    //==========================
+    //basic route
+    app.get('/', function(req, res){
+        res.send('hello!The API is at http://localhost:' + port + '/api');
+    });
+    
+    //API routes -------------
+    //we will get to these in a second
+    
+    //==========================
+    // start the server    =====
+    //==========================
+    app.listen(port);
+    console.log('Magic happens at http://localhost' + port);
+    
+    
+    接下来就可以启动该应用了，启动之前要正确配置好数据库。
+    使用命令启动:
+        $ node server.js
+    通过浏览器，输入地址:http://localhost:8080即可以看到主页面内容。
+    
+创建user案例：
+    在server.js中的routes部分添加一下代码:
+    app.get('/setup', function (req, res){
+        //create a sample user
+        var nick = new User({
+            name: 'Nick Cerminara',
+            password: 'password',
+            admin: true
+        });
+    });
+    // save the sample user
+    nick.save(function (err){
+        if (err) throw err;
+        
+        console.log('User saved successfully');
+        res.json({success: true});
+    });
+    
+    继续进行，并访问你的应用http://localhost:8080/setup,控制台会得到返回信息‘User saved successfully’并且返回一个JSON对象{success: true}。
+显示用户
+    现在创建一个API路由并返回JSON格式的用户信息。
+    // API ROUTES ---------------
+    
+    //get an instance of the router for api routes
+    var apiRoutes = express.Router();
+    //TODO: route to authenticate a user(POST http://localhost:8080/api/authenticate)
+    
+    //TODO: route middleware to verify a token
+    
+    //route to show a random message (GET http://localhost:8080/api/)
+    apiRoutes.get('/', function (req, res){
+        res.json({message: 'Welcome to the coolest API on earth!'});
+    });
+    
+    // route to return all users (GET http://localhost:8080/api/users)
+    apiRoutes.get('/users', function (req, res){
+        User.find({}, function(err, users){
+            res.json(users);
+        });
+    });
+    
+    // apply the routes to our application with the prefix / api
+    app.user('/api', apiRoutes);
+    
+    
+    通过http://localhost:8080/api/,会获取信息:{message: 'Welcom to the coolest API on earth!'}
+    通过http://localhost:8080/api/users,会获取用户信息列表。
+    
+    接下来进行授权认证，避免所有人都可以访问该列表。
+认证和创建token
+    创建路径: http://localhost:8080/api/authenticate，用于验证用户名密码并返回token。
+    用户获取token后存储到客户端，并传该token到服务器在每一次访问中。服务器端通过使用中间件进行认证。
+    
+    //API ROUTES --------------
+    
+    //get an instance of the router for api routes
+    var apiRoutes = express.Router();
+    
+    //route to authenticate a user (POST http://localhost:8080/api/authenticate)
+    apiRoutes.post('/authenticate', function (req, res){
+        //find the user
+        User.findOne({
+            name: req.body.name
+        }, function (err, user){
+            if (err) throw err;
+            
+            if (!user){
+                res.json({
+                    success: false, message: 'Authentication failed.User not found.'
+                });
+            }
+            else if (user){
+                if (user.password != req.body.password){
+                    res.json({success: false, message: 'Authenticate failed.Wrong password'});
+                }
+                else {
+                    // if user is found and password is right
+                    //create a token 
+                    var token = jwt.sign(user, app.get('superSecret'), {expiresInMinutes: 1440});
+                    res.json({success: true, message: 'Enjoy your token', token: token});
+                }
+            }
+        });
+    });
+    
+    通过该段代码，检测用户名和密码并返回一个token值。使用mongoose访问数据库，使用jsonwebtoken创建token。
+    使用POSTman检测该接口。将用户名和密码添加到x-www-form-urlencoded，模拟表单数据。
+    进行各种测试......
+使用路由插件，保护API路由
+到目前为止，我们有3个路由：
+        /api/authenticate, /api, /api/users,创建路由插件对后两个进行保护。
+    
+    
+    //API ROUTES ---------------
+    
+    
+    //get an instance of the router for api routes
+    var apiRoutes = ecpress.Router();
+    
+    // route to authenticate a user (POST http://localhost:8080/api/authenticate)
+    ...
+    //route middleware to verify a token
+    apiRoutes.use(function (req, res, next){
+        var token = req.body.token || req.query.token || req.headers['x-access-token'];
+        
+        //decode token
+        if (token){
+            // verify secret and checks expiresInMinutes
+            jwt.verify(token, app.get('superSecret'), function (err, decoded){
+                if (err){
+                    return res.json({success: false, message: 'Failed to authenticate token'});
+                }
+                else {
+                    req.decoded = decoded;
+                    next();
+                }
+            });
+        }
+        else {
+            return res.status(403).send({
+                success: false,
+                message: 'No token provided.'
+            });
+        }
+    });
+    
+    app.use('/api', apiRoutes);
